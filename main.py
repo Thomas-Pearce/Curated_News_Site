@@ -1,32 +1,35 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, Response, redirect, url_for, request, session, abort
+from config import get_config
+from data import article_model
+import flask_login
+import initialization
+from data import DBClient
+
 app = Flask(__name__)
+app.secret_key = get_config()['APP_SECRET']
+
+# This should be deprecated soon.
 username=None
-# username="Tom"
+
+login_manager = flask_login.LoginManager()
+login_manager.init_app(app)
+
+# Our mock database.
+users = {'foo@bar.tld': {'password': 'secret'}}
 
 @app.route('/')
 @app.route('/index')
 @app.route('/index.html')
 def index():
+    # This method requires every path to check if the user is logged in.
+    # A better solution would be to customise the anonymous user class, as seen:
+    # https://teamtreehouse.com/community/attributeerror-anonymoususermixin-object-has-no-attribute-username
+    if flask_login.current_user.is_authenticated:
+        username = flask_login.current_user.id
+    else: username = None
 
-    filler="""This is a wider card with supporting text below as a natural lead-in to additional content. This card has even longer content than the first to show that equal height action.
-    This is a bunch more text just to fill it outThis is a bunch more text just to fill it outThis is a bunch more text just to fill it outThis is a bunch more text just to fill it outThis is a bunch more text just to fill it out
-    This is a bunch more text just to fill it outThis is a bunch more text just to fill it outThis is a bunch more text just to fill it outThis is a bunch more text just to fill it out
-    This is a bunch more text just to fill it out
-    """
-    posts = [
-        {
-            'image': './static/images/cat.jpg',
-            'title': 'Post One',
-            'body': filler,
-            'updated': 'Last updated 3 mins ago'
-        },
-        {
-            'image': './static/images/cat.jpg',
-            'title': 'Post Two',
-            'body': filler,
-            'updated': 'Last updated 3 mins ago'
-        }
-    ]
+    posts = article_model.get_breaking()
+
     return render_template('posts.html', posts=posts, username=username)
 
 
@@ -41,6 +44,10 @@ def about():
 def keyword():
     return render_template('keyword.html', username=username)
 
+@app.route('/keyword/<query>')
+def keywordsearch(query):
+    return render_template('keywordsearch.html', query=query)
+
 
 @app.route('/contact')
 @app.route('/contact.html')
@@ -54,16 +61,80 @@ def settings():
     return render_template('settings.html', username=username)
 
 
-@app.route('/login')
-@app.route('/login.html')
+@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login.html', methods=['GET', 'POST'])
 def login():
-    return render_template('login.html', username=username)
+    if request.method == 'GET':
+        return render_template('login.html', username=username)
+    email = request.form['email']
+    if request.form['password'] == users[email]['password']:
+        user = User()
+        user.id = email
+        flask_login.login_user(user)
+        return redirect(url_for('protected'))
 
-@app.route('/signup')
-@app.route('/signup.html')
+    return 'Bad login'
+
+
+@app.route('/protected')
+@flask_login.login_required
+def protected():
+    # This is just an example page to show pages protected by login.
+    return 'Logged in as: ' + flask_login.current_user.id
+
+
+class User(flask_login.UserMixin):
+    pass
+
+
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    return 'Logged out'
+
+
+@login_manager.unauthorized_handler
+def unauthorized_handler():
+    return 'Unauthorized'
+
+
+@login_manager.user_loader
+def user_loader(email):
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+    return user
+
+
+@login_manager.request_loader
+def request_loader(request):
+    email = request.form.get('email')
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+
+    # DO NOT ever store passwords in plaintext and always compare password
+    # hashes using constant-time comparison!
+    user.is_authenticated = request.form['password'] == users[email]['password']
+
+    return user
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+@app.route('/signup.html', methods=['GET', 'POST'])
 def signup():
-    return render_template('signup.html', username=username)
+    if request.method == 'POST':
+        print(request.form)
+        return "Cool my dude"
+    else:
+        return render_template('signup.html', username=username)
 
 
 if __name__ == '__main__':
+    client = DBClient()
+    initialization.init_database()
     app.run()

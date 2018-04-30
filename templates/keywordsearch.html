@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-	{% if username %}
+	{% if query %}
 	<div class="container">
-		<p>Here's your list of keywords!</p>
-		<p>Not Implemented</p>
+		<p>You searched for the keyword {{query}}</p>
 	</div>
 	{% else  %}
 	<div class="container">
-		<p>You need to login to view your keywords</p>
+		<p>How did you even get here?</p>
 	</div>
 	{% endif %}
 {% endblock %}
