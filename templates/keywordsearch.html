@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+	{% if query %}
+	<div class="container">
+		<p>You searched for the keyword {{query}}</p>
+	</div>
+	{% else  %}
+	<div class="container">
+		<p>How did you even get here?</p>
+	</div>
+	{% endif %}
+{% endblock %}

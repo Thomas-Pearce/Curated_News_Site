@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+	{% if username %}
+	<div class="container">
+		<p>Here's your list of keywords!</p>
+		<p>Not Implemented</p>
+	</div>
+	{% else  %}
+	<div class="container">
+		<p>You need to login to view your keywords</p>
+	</div>
+	{% endif %}
+{% endblock %}
